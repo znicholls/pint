@@ -12,7 +12,7 @@
 # - can run the tests with python setup.py test to make sure everything still passes
 # - can run the pandas interface tests with pytest -x --pdb pint/testsuite/test_pandas_interface.py
 
-# - I'll use IntegerArray as my base https://github.com/pandas-dev/pandas/blob/master/pandas/core/arrays/integer.py
+# - I'll use PintArray as my base https://github.com/pandas-dev/pandas/blob/master/pandas/core/arrays/integer.py
 # - I'll add as few methods as possible to pass the pandas test
 # - each time I add a method I'll add it with NotImplementedError first to make sure I can see where it's being called
 # - then I can add the functionality bit by bit and keep some track of what is going on
@@ -30,17 +30,24 @@
 import copy
 
 import numpy as np
+from pandas.core import ops
 from pandas.core.arrays import ExtensionArray
 from pandas.core.arrays.base import ExtensionOpsMixin
 from pandas.core.dtypes.base import ExtensionDtype
 from pandas.core.dtypes.common import (
-    is_integer)
+    is_integer,
+    is_list_like,
+    is_bool)
 from pandas.core.dtypes.dtypes import registry
+from pandas.compat import set_function_name
 
-from ..quantity import _Quantity
+from ..quantity import build_quantity_class, _Quantity
+from .. import _DEFAULT_REGISTRY
 
 class PintType(ExtensionDtype):
-    type = _Quantity
+    # I think this is the way to build a Quantity class and force it to be a
+    # numpy array
+    type = build_quantity_class(_DEFAULT_REGISTRY, force_ndarray=True)
     name = 'pint'
 
     @classmethod
@@ -57,41 +64,51 @@ class PintType(ExtensionDtype):
             raise TypeError("Cannot construct a '{}' from "
                             "'{}'".format(cls, string))
 
-def coerce_to_pint_quantity(values, dtype, copy=False):
-    if dtype is not None:
-        if not isinstance(dtype, PintType):
-            raise ValueError("invalid dtype specified {}".format(dtype))
-
-    if isinstance(values, _Quantity):
-        return values
-
-    a = []
-    for v in values:
-        a.append(dtype.type(v))
-    import pdb
-    pdb.set_trace()
-    raise NotImplementedError("cannot make PintArray from "
-                              "{}".format(type(values)))
-
-    if not isinstance(values, _Quantity):
-        raise NotImplementedError("cannot make PintArray from "
-                                  "{}".format(type(values)))
-
-    return values
-
 
 class PintArray(ExtensionArray, ExtensionOpsMixin):
     _dtype = PintType
 
     def __init__(self, values, dtype=None, copy=False):
-        if isinstance(values, list):
-            tmp = self._from_sequence(values, dtype=dtype, copy=copy)
-            self._data = tmp._data
+        if isinstance(values, _Quantity):
+            self._dtype.type = type(values)
+            assert self._dtype.type._REGISTRY == values._REGISTRY
+        self._data = self._coerce_to_pint_array(values, dtype=dtype, copy=copy)
 
-        else:
-            self._data = coerce_to_pint_quantity(
-                values, dtype, copy=copy
-            )
+    def _coerce_to_pint_array(self, values, dtype=None, copy=False):
+        if isinstance(values, self._dtype.type):
+            return values
+
+        if is_list_like(values):
+            if all(is_bool(v) for v in values):
+                # known bug in pint https://github.com/hgrecco/pint/issues/673
+                raise TypeError("Invalid magnitude for {}: {}"
+                                "".format(self._dtype.type, values))
+
+            for i, v in enumerate(values):
+                if isinstance(v, self._dtype.type):
+                    continue
+                else:
+                    values[i] = v * self._find_first_unit(values)
+
+            units = set(v.units for v in values)
+            if len(units) > 1:
+                raise TypeError("The units of all quantities are not the same"
+                                " for input {}".format(values))
+
+            magnitudes = [v.magnitude for v in values]
+
+            return self._dtype.type(magnitudes, values[0].units)
+
+        import pdb
+        pdb.set_trace()
+        return NotImplementedError
+
+    def _find_first_unit(self, values):
+        for v in values:
+            if isinstance(v, self._dtype.type):
+                return v.units
+
+        return self._dtype.type(1).units
 
     def __getitem__(self, item):
         # type (Any) -> Any
@@ -201,35 +218,70 @@ class PintArray(ExtensionArray, ExtensionOpsMixin):
 
     @classmethod
     def _concat_same_type(cls, to_concat):
-        raise NotImplementedError
+        # taken from Metpy, would be great to somehow include in pint...
+        for a in to_concat:
+            units = a._data.units
+
+        data = []
+        for a in to_concat:
+            mag_common_unit = a._data.to(units).magnitude
+            data.append(np.atleast_1d(mag_common_unit))
+
+        return cls(np.concatenate(data) * units)
+
 
     @classmethod
     def _from_sequence(cls, scalars, dtype=None, copy=False):
-        """Construct a new PintArray from a sequence of single value
-        (not array) quantities.
+        return cls(scalars, dtype=dtype, copy=copy)
+
+    @classmethod
+    def _from_factorized(cls, values, original):
+        return cls(values, dtype=original.dtype)
+
+    def value_counts(self, dropna=True):
+        """
+        Returns a Series containing counts of each category.
+
+        Every category will have an entry, even those with a count of 0.
+
         Parameters
         ----------
-        scalars : Sequence
-            Each element must be an instance of the scalar type for this
-            array.
+        dropna : boolean, default True
+            Don't include counts of NaN.
+
         Returns
         -------
-        PintArray
+        counts : Series
+
+        See Also
+        --------
+        Series.value_counts
         """
-        if dtype is not None:
-            if not isinstance(dtype, cls._dtype):
-                raise NotImplementedError
 
-        for s in scalars:
-            assert isinstance(s, cls._dtype.type)
+        from pandas import Index, Series
 
-        units = set(s.units for s in scalars)
-        if len(units) > 1:
-            raise TypeError("The units of all quantities are not the same.")
+        # compute counts on the data with no nans
+        data = self._data
+        if dropna:
+            value_counts = Index(data).dropna().value_counts()
+        else:
+            value_counts = Index(data).dropna().value_counts()
 
-        magnitudes = [quantity.magnitude for quantity in scalars]
+        array = value_counts.values
+        index = value_counts.index
 
-        return cls(type(scalars[0])(magnitudes, scalars[0].units))
+        return Series(array, index=index)
+
+    def unique(self):
+        """Compute the PintArray of unique values.
+
+        Returns
+        -------
+        uniques : ExtensionArray
+        """
+        from pandas import unique
+
+        return self._from_sequence(unique(self._data) * self._data.units)
 
     @property
     def dtype(self):
@@ -240,6 +292,39 @@ class PintArray(ExtensionArray, ExtensionOpsMixin):
     @property
     def data(self):
         return self._data
+
+    @property
+    def nbytes(self):
+        return self._data.nbytes
+
+# --- removing this seems to help ---
+    # @classmethod
+    # def _create_comparison_method(cls, op):
+    #     def cmp_method(self, other):
+    #         op_name = op.__name__
+
+    #         if isinstance(other, PintArray):
+    #             other = other._data
+    #         elif is_list_like(other):
+    #             other = self._coerce_to_pint_array(other)
+    #             if other.ndim > 0 and len(self._data) != len(other):
+    #                 raise ValueError('Lengths must match to compare')
+
+    #         result = op(self._data, other)
+
+    #         return result
+
+    #     name = '__{name}__'.format(name=op.__name__)
+    #     return set_function_name(cmp_method, name, cls)
+
+    # @classmethod
+    # def _create_arithmetic_method(cls, op):
+    #     pass
+
+
+# PintArray._add_arithmetic_ops()
+# PintArray._add_comparison_ops()
+# ---------------------------------
 
 # register
 registry.register(PintType)
