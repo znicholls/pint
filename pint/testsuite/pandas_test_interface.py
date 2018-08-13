@@ -4,13 +4,11 @@
 
 import sys
 
-try:
-    import pytest
-    import pandas as pd
-    from pandas.compat import PY3
-    from pandas.tests.extension import base
-except ImportError:
-    pass
+import pint
+import pytest
+import pandas as pd
+from pandas.compat import PY3
+from pandas.tests.extension import base
 
 import numpy as np
 import pint
@@ -132,55 +130,42 @@ def all_compare_operators(request):
     return request.param
 # =================================================================
 
-@pytest_required
 class TestCasting(base.BaseCastingTests):
     pass
 
-@pytest_required
 class TestConstructors(base.BaseConstructorsTests):
     pass
 
-@pytest_required
 class TestDtype(base.BaseDtypeTests):
     pass
 
-@pytest_required
 class TestGetitem(base.BaseGetitemTests):
     pass
 
-@pytest_required
 class TestGroupby(base.BaseGroupbyTests):
     pass
 
-@pytest_required
 class TestInterface(base.BaseInterfaceTests):
     pass
 
-@pytest_required
 class TestMethods(base.BaseMethodsTests):
     pass
 
-@pytest_required
 class TestArithmeticOps(base.BaseArithmeticOpsTests):
     pass
 
-@pytest_required
 class TestComparisonOps(base.BaseComparisonOpsTests):
     pass
 
-@pytest_required
 class TestOpsUtil(base.BaseOpsUtil):
     pass
 
-@pytest_required
 class TestMissing(base.BaseMissingTests):
     pass
 
-@pytest_required
 class TestReshaping(base.BaseReshapingTests):
     pass
 
-@pytest_required
 class TestSetitem(base.BaseSetitemTests):
     pass
 
@@ -324,7 +309,6 @@ the underlying class. Hence things like
 can never work directly which is kind of sad... You have to always go
 through a `PintArray`.
 """
-@pytest_required
 class TestUserInterface(object):
     def test_get_underlying_data(self, data):
         ser = pd.Series(data)
@@ -343,9 +327,23 @@ class TestUserInterface(object):
         strt = np.arange(100) * ureg.newton
         ser = pd.Series(strt, dtype=ppi.PintType())
         assert all(ser.values == strt)
+
+
+arithmetic_ops=[operator.add ,
+ operator.sub ,
+ operator.mul ,
+ operator.truediv ,
+ operator.floordiv ,
+ operator.pow]
+
+comparative_ops=     [operator.eq ,
+     operator.le ,
+     operator.lt ,
+     operator.ge ,
+     operator.gt]
 class TestPintArrayQuantity(QuantityTestCase):
     FORCE_NDARRAY = True
-    
+
     def test_pintarray_creation(self):
         x=self.Q_([1,2,3],"m")
         ys=[
@@ -354,40 +352,50 @@ class TestPintArrayQuantity(QuantityTestCase):
         ]
         for y in ys:
             self.assertQuantityAlmostEqual(x,y.data)
-    def test_pintarray_arithmetics(self):
+    def test_pintarray_arithmetics_compatives(self):
         # Perform operations with Quantities and PintArrays
         # The resulting Quantity and PintArray.Data should be the same
         # a op b = c
-        def test_op(a_Q,a_QA,b_):
-            c_Q=None
+        def test_op(a_P,a_PA,b_, coerce=True):
             try:
-                c_Q=op(a_Q, b_)
-            except Exception as exception:
-                e=exception
-            if not c_Q is None:
-                c_QA=op(a_QA, b_).data
-                self.assertQuantityAlmostEqual(c_Q,c_QA)
+                c_P=op(a_P, b_)
+            except Exception as e:
+                exception=e
+            if not "exception" in locals():
+                if coerce:
+                    # a PintArray is returned from arithmetics, so need the data
+                    c_PA=op(a_PA, b_).data
+                else:
+                    # a boolean array is returned from comparatives
+                    c_PA=op(a_PA, b_)
+                self.assertQuantityAlmostEqual(c_P,c_PA)
             else:
-                self.assertRaises(type(e), op,a_QA, b_)
-        arithmetic_ops=[operator.add ,
-         operator.sub ,
-         operator.mul ,
-         operator.truediv ,
-         operator.floordiv ,
-         operator.pow]
+                self.assertRaises(type(exception), op,a_PA, b_)
 
-        a_Qs= [ self.Q_([3,4],"m"),
+        a_Ps= [ self.Q_([3,4],"m"),
                 self.Q_([3,4],"")]
-        a_QAs=[PintArray(q) for q in a_Qs]
+        a_PAs=[PintArray(q) for q in a_Ps]
 
-        bs=[[1.,3.],
+        bs=[2,
+            self.Q_(3,"m"),
+            [1.,3.],
             [3.3,4.4],
             self.Q_([6,6],"m"),
             self.Q_([7.,np.nan])
         ]
-        for a_Q, a_QA in zip(a_Qs, a_QAs):
-            for bb in bs:
+        for a_P, a_PA in zip(a_Ps, a_PAs):
+            for b in bs:
                 for op in arithmetic_ops:
-                    test_op(a_Q,a_QA,bb)
-                
-                
+                    test_op(a_P,a_PA,b)
+                for op in comparative_ops:
+                    test_op(a_P,a_PA,b,coerce=False)
+
+    def test_mismatched_dimensions(self):
+        x_and_ys=[
+        (PintArray(self.Q_([5],"m")), [1,1] ),
+        (PintArray(self.Q_([5,5,5],"m")), [1,1] ),
+        (PintArray(self.Q_([5,5],"m")), [1] ),
+        ]
+        for x, y in x_and_ys:
+            for op in comparative_ops+arithmetic_ops:
+                self.assertRaises(ValueError, op, x, y)
