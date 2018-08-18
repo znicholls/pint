@@ -63,6 +63,19 @@ def ireduce_dimensions(f):
         return result
     return wrapped
 
+def check_implemented(f):
+    def wrapped(self, *args, **kwargs):
+        other=args[0]
+        if other.__class__.__name__ in ["PintArray", "Series"]:
+            return NotImplemented
+        # pandas often gets to arrays of quantities [ Q_(1,"m"), Q_(2,"m")]
+        # and expects Quantity * array[Quantity] should return NotImplemented
+        elif type(other)==list and isinstance(other[0], type(self)):
+            return NotImplemented
+        result = f(self, *args, **kwargs)
+        return result
+    return wrapped
+
 
 @fix_str_conversions
 class _Quantity(PrettyIPython, SharedRegistryObject):
@@ -618,7 +631,8 @@ class _Quantity(PrettyIPython, SharedRegistryObject):
             raise OffsetUnitCalculusError(self._units, other._units)
 
         return self
-
+    
+    @check_implemented
     def _add_sub(self, other, op):
         """Perform addition or subtraction operation and return the result.
 
@@ -809,6 +823,7 @@ class _Quantity(PrettyIPython, SharedRegistryObject):
 
         return self
 
+    @check_implemented
     @ireduce_dimensions
     def _mul_div(self, other, magnitude_op, units_op=None):
         """Perform multiplication or division operation and return the result.
@@ -1611,7 +1626,8 @@ class _Quantity(PrettyIPython, SharedRegistryObject):
 
     def to_timedelta(self):
         return datetime.timedelta(microseconds=self.to('microseconds').magnitude)
-
+    
+        
 
 def build_quantity_class(registry, force_ndarray=False):
 
