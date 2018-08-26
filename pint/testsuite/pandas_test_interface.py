@@ -31,7 +31,7 @@ def dtype():
 
 @pytest.fixture
 def data():
-    return ppi.PintArray(np.arange(100) * ureg.kilogram)
+    return ppi.PintArray( np.arange(start=1,stop=101) * ureg.kilogram)
 
 
 @pytest.fixture
@@ -85,7 +85,7 @@ def data_missing_for_sorting():
 def na_cmp():
     """Binary operator for comparing NA values.
     """
-    return lambda x, y: bool(np.isnan(x)) & bool(np.isnan(y))
+    return lambda x, y: bool(np.isnan(x.magnitude)) & bool(np.isnan(y))
 
 
 @pytest.fixture
@@ -394,6 +394,8 @@ class TestPintArrayQuantity(QuantityTestCase):
         for y in ys:
             self.assertQuantityAlmostEqual(x,y.data)
 
+    
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning")
     def test_pintarray_operations(self):
         # Perform operations with Quantities and PintArrays
         # The resulting Quantity and PintArray.Data should be the same
