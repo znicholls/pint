@@ -147,13 +147,21 @@ class PintArray(ExtensionArray, ExtensionOpsMixin):
 
         return res
 
-    def __array__(self,dtype=None,copy=False):
-    # this is necessary to prevent for some pandas operations, eg transpose. Units will be lost though
-        if dtype==None:
+    def __array__(self, dtype=None, copy=False):
+    # this is necessary for some pandas operations, eg transpose
+    # note, units will be lost
+        if dtype == None:
             dtype=object
+        if type(dtype) == str:
+            dtype = getattr(np, dtype)
         if dtype == object:
             return np.array(list(self._data), dtype = dtype, copy = copy)
-        return np.array(self._data, dtype = dtype, copy = copy)
+        if not isinstance(dtype, np.dtype):
+            list_of_converteds = [dtype(item) for item in self._data]
+        else:
+            list_of_converteds = [dtype.type(item) for item in self._data]
+
+        return np.array(list_of_converteds)
 
     def isna(self):
         # type: () -> np.ndarray
@@ -164,6 +172,25 @@ class PintArray(ExtensionArray, ExtensionOpsMixin):
         missing : np.array
         """
         return np.isnan(self._data.magnitude)
+
+    def astype(self, dtype, copy=True):
+        """Cast to a NumPy array with 'dtype'.
+
+        Parameters
+        ----------
+        dtype : str or dtype
+            Typecode or data-type to which the array is cast.
+        copy : bool, default True
+            Whether to copy the data, even if not necessary. If False,
+            a copy is made only if the old dtype does not match the
+            new dtype.
+
+        Returns
+        -------
+        array : ndarray
+            NumPy ndarray with 'dtype' for its dtype.
+        """
+        return self.__array__(dtype,copy)
 
     def take(self, indices, allow_fill=False, fill_value=None):
         # type: (Sequence[int], bool, Optional[Any]) -> PintArray
@@ -251,10 +278,14 @@ class PintArray(ExtensionArray, ExtensionOpsMixin):
     def _concat_same_type(cls, to_concat):
         # taken from Metpy, would be great to somehow include in pint...
         for a in to_concat:
+            if all(np.isnan(a._data)):
+                continue
             units = a._data.units
 
         data = []
         for a in to_concat:
+            if (all(np.isnan(a._data))) and (a._data.units != units):
+                a = a*units
             mag_common_unit = a._data.to(units).magnitude
             data.append(np.atleast_1d(mag_common_unit))
 
@@ -295,11 +326,11 @@ class PintArray(ExtensionArray, ExtensionOpsMixin):
         data = self._data
         if dropna:
             data = data[~np.isnan(data.magnitude)]
-            
+
         data_list = data.tolist()
         index = list(set(data))
         array = [data_list.count(item) for item in index]
-        
+
         return Series(array, index=index)
 
     def unique(self):
@@ -401,9 +432,6 @@ class PintArray(ExtensionArray, ExtensionOpsMixin):
             rvalues = convert_values(other)
             # Pint quantities may only be exponented by single values, not arrays.
             # Reduce single value arrays to single value to allow power ops
-
-            # with warnings.catch_warnings():
-                # warnings.simplefilter("ignore")
             if isinstance(rvalues,_Quantity):
                 if len(set(np.array(rvalues.data)))==1:
                     rvalues=rvalues[0]

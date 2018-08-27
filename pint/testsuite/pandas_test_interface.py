@@ -71,16 +71,6 @@ def data_missing_for_sorting():
     # [4 * ureg.meter, np.nan, 10 * ureg.centimeter]
 
 
-# @pytest.fixture
-# def na_cmp(x,y):
-    # """Binary operator for comparing NA values.
-    # """
-    # def f():
-        # with warnings.catch_warnings():
-            # warnings.simplefilter("ignore")
-            # res = bool(np.isnan(x)) & bool(np.isnan(y))
-        # return res
-    # return f
 @pytest.fixture
 def na_cmp():
     """Binary operator for comparing NA values.
@@ -140,9 +130,7 @@ def all_compare_operators(request):
 # =================================================================
 
 class TestCasting(base.BaseCastingTests):
-    def test_astype_str(self, data):
-        result = pd.Series(data[:5]).astype(str)
-        expected = pd.Series(data[:5].astype(str))
+    pass
 
 class TestConstructors(base.BaseConstructorsTests):
     pass
@@ -395,11 +383,14 @@ class TestPintArrayQuantity(QuantityTestCase):
             self.assertQuantityAlmostEqual(x,y.data)
 
     
+    @pytest.mark.filterwarnings("ignore::pint.UnitStrippedWarning")
     @pytest.mark.filterwarnings("ignore::RuntimeWarning")
     def test_pintarray_operations(self):
         # Perform operations with Quantities and PintArrays
         # The resulting Quantity and PintArray.Data should be the same
         # a op b == c
+        # warnings ignored here as it these tests are to ensure 
+        # pint array behaviour is the same as quantity
         def test_op(a_pint, a_pint_array, b_, coerce=True):
             try:
                 result_pint = op(a_pint, b_)
@@ -430,8 +421,6 @@ class TestPintArrayQuantity(QuantityTestCase):
             [3.3, 4.4],
             self.Q_([6, 6], "m"),
             self.Q_([7., np.nan]),
-            # PintArray(self.Q_([6,6],"m")),
-            # PintArray(self.Q_([7.,np.nan])),
         ]
 
         for a_pint, a_pint_array in zip(a_pints, a_pint_arrays):
