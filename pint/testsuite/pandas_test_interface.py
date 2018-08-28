@@ -3,6 +3,7 @@
 # - pandas test resources https://github.com/pandas-dev/pandas/blob/master/pandas/tests/extension/base/__init__.py
 
 import sys
+from os.path import join, dirname
 
 import pint
 import pytest
@@ -164,7 +165,7 @@ class TestMethods(base.BaseMethodsTests):
             dropna=dropna).sort_index()
 
         self.assert_series_equal(result, expected)
-    
+
     @pytest.mark.filterwarnings("ignore::pint.UnitStrippedWarning")
     # See test_setitem_mask_broadcast note
     @pytest.mark.parametrize('box', [pd.Series, lambda x: x])
@@ -309,7 +310,7 @@ class TestSetitem(base.BaseSetitemTests):
     @pytest.mark.filterwarnings("ignore::pint.UnitStrippedWarning")
     # Pandas performs a hasattr(__array__), which triggers the warning
     # Debugging it does not pass through a PintArray, so
-    # I think this needs changing in pint quantity 
+    # I think this needs changing in pint quantity
     # eg s[[True]*len(s)]=Q_(1,"m")
     def test_setitem_mask_broadcast(self, data, setter):
         ser = pd.Series(data)
@@ -325,6 +326,8 @@ class TestSetitem(base.BaseSetitemTests):
         assert ser[0] == data[10]
         assert ser[1] == data[10]
 
+# would be ideal to just test all of this by running the example notebook
+# but this isn't a discussion we've had yet
 class TestUserInterface(object):
     def test_get_underlying_data(self, data):
         ser = pd.Series(data)
@@ -350,6 +353,43 @@ class TestUserInterface(object):
         # This needs to be a list of scalar quantities to work :<
         ser = pd.Series([q for q in strt], dtype=ppi.PintType())
         assert all(ser.values == strt)
+
+    def test_df_operations(self):
+        # simply a copy of what's in the notebook
+        Q_ = ureg.Quantity
+        df = pd.DataFrame({
+            "torque": PintArray(Q_([1, 2, 2, 3], "lbf ft")),
+            "angular_velocity": PintArray(Q_([1000, 2000, 2000, 3000], "rpm"))
+        })
+
+        df['power'] = df['torque'] * df['angular_velocity']
+
+        df.power.values.data
+        df.torque.values.data
+        df.angular_velocity.values.data
+
+        df.power.values.data.to("kW")
+
+        test_csv = join(
+            dirname(__file__),
+            "..", "..", "example-notebooks", "pint_test_data.csv"
+        )
+
+        df=pd.read_csv(test_csv, header=[0,1])
+        df_ = df.pint.quantify(ureg, level=-1)
+
+        df_['mech power'] = df_.speed*df_.torque
+        df_['fluid power'] = df_['fuel flow rate'] * df_['rail pressure']
+
+        df_.pint.dequantify()
+
+        df_['fluid power'] = df_['fluid power'].pint.to("kW")
+        df_['mech power'] = df_['mech power'].pint.to("kW")
+        df_.pint.dequantify()
+
+        df_.pint.to_base_units().pint.dequantify()
+
+
 
 
 arithmetic_ops = [
@@ -382,14 +422,14 @@ class TestPintArrayQuantity(QuantityTestCase):
         for y in ys:
             self.assertQuantityAlmostEqual(x,y.data)
 
-    
+
     @pytest.mark.filterwarnings("ignore::pint.UnitStrippedWarning")
     @pytest.mark.filterwarnings("ignore::RuntimeWarning")
     def test_pintarray_operations(self):
         # Perform operations with Quantities and PintArrays
         # The resulting Quantity and PintArray.Data should be the same
         # a op b == c
-        # warnings ignored here as it these tests are to ensure 
+        # warnings ignored here as it these tests are to ensure
         # pint array behaviour is the same as quantity
         def test_op(a_pint, a_pint_array, b_, coerce=True):
             try:

@@ -80,6 +80,7 @@ class PintArray(ExtensionArray, ExtensionOpsMixin):
 
             units = set(v.units for v in values)
             if len(units) > 1:
+                # need to work out a way to test this
                 raise TypeError("The units of all quantities are not the same"
                                 " for input {}".format(values))
 
@@ -87,8 +88,6 @@ class PintArray(ExtensionArray, ExtensionOpsMixin):
 
             return self._dtype.type(magnitudes, values[0].units)
 
-        import pdb
-        pdb.set_trace()
         return NotImplementedError
 
     def _find_first_unit(self, values):
