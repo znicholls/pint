@@ -350,7 +350,21 @@ class TestUserInterface(object):
         ser = pd.Series([q for q in strt], dtype=ppi.PintType())
         assert all(ser.values == strt)
 
-
+class TestSeriesAccessors(object):
+    @pytest.mark.parametrize('attr', [
+'debug_used',
+'default_format',
+'dimensionality',
+'dimensionless',
+'force_ndarray',
+'shape',
+'u',
+'unitless',
+'units'])
+    def test_series_attributes_accessors(self, data, attr):
+       s = pd.Series(data)
+       assert getattr(s.pint, attr) == getattr(data._data,attr)
+        
 arithmetic_ops = [
     operator.add,
     operator.sub,
