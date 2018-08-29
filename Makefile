@@ -9,4 +9,9 @@
 # cd pandas
 # pip install -e .
 
-# need to add this in
+.PHONY: test
+test:
+	python -bb -m coverage run -p --source=pint --omit="*test*","*compat*" setup.py test
+	python -bb -m coverage run -p --source=pint --omit="*test*","*compat*" -m py.test pint/testsuite/pandas_test_interface.py
+	coverage combine
+	coverage report -m

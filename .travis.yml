@@ -55,9 +55,8 @@ install:
 
 script:
   - python -bb -m coverage run -p --source=pint --omit="*test*","*compat*" setup.py test
-  # renaming to avoid discovery is horrible but I can't see how else to do this
-  - if [[ $PANDAS == '1' ]]; then py.test --cov=pint --cov-append pint/testsuite/pandas_test_interface.py; fi
-  - if [[ $PANDAS == '0' ]]; then coverage combine; fi
+  - if [[ $PANDAS == '1' ]]; then python -bb -m coverage run -p --source=pint --omit="*test*","*compat*" -m py.test pint/testsuite/pandas_test_interface.py; fi
+  - coverage combine
   - coverage report -m
 
 after_success:
