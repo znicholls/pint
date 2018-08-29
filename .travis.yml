@@ -54,7 +54,7 @@ install:
   - pip install coveralls
 
 script:
-  - python -bb -m coverage run -p --source=pint --omit="*test*","*compat*" setup.py test
+  - python -bb -m coverage run -p --source=pint --omit="*test*","*compat*","*pandas*" setup.py test
   - if [[ $PANDAS == '1' ]]; then python -bb -m coverage run -p --source=pint --omit="*test*","*compat*" -m py.test pint/testsuite/pandas_test_interface.py; fi
   - coverage combine
   - coverage report -m
