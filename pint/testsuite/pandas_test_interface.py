@@ -468,11 +468,7 @@ class TestPintArrayQuantity(QuantityTestCase):
                 for op in arithmetic_ops:
                     test_op(a_pint, a_pint_array, b)
                 for op in comparative_ops:
-<<<<<<< HEAD
-                    test_op(a_P,a_PA,b,coerce=False)
-=======
                     test_op(a_pint, a_pint_array, b, coerce=False)
->>>>>>> efc6049... Tidy up tests
 
     def test_mismatched_dimensions(self):
         x_and_ys=[
