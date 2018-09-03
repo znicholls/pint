@@ -82,15 +82,13 @@ class PintArray(ExtensionArray, ExtensionOpsMixin):
 
             units = set(v.units for v in values)
             if len(units) > 1:
+                # need to work out a way to test this
                 raise TypeError("The units of all quantities are not the same"
                                 " for input {}".format(values))
 
             magnitudes = [v.magnitude for v in values]
 
             return self._dtype.type(magnitudes, values[0].units)
-
-        import pdb
-        pdb.set_trace()
         return NotImplementedError
 
     def _find_first_unit(self, values):
@@ -385,7 +383,6 @@ class PintArray(ExtensionArray, ExtensionOpsMixin):
         # Tried this but it doesn't print as a newline in pandas 
         # output[0]= str(self.data.units) + r"\n" + output[0]
         return np.array(output)
-
 
     @classmethod
     def _create_method(cls, op, coerce_to_dtype=True):
