@@ -22,3 +22,6 @@ test/
 
 # notebook stuff
 *.ipynb_checkpoints*
+
+# test csv which should be user generated
+example-notebooks/pandas_test.csv

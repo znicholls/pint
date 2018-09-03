@@ -87,7 +87,84 @@ The standard pint conversions can then be performed
 Reading a csv
 -------------
 
-Thanks to the DataFrame accessors, reading from files with unit information becomes trivial. The DataFrame accessors make it easy to get to PintArrays. Let's start by reading a file which has units as a level in the column multiindex:
+Thanks to the DataFrame accessors, reading from files with unit information becomes trivial. The DataFrame accessors make it easy to get to PintArrays.
+
+Setup
+~~~~~
+
+Here we create the DateFrame and save it to file, next we will show you how to load and read it.
+
+We start with an DateFrame with column headers only.
+
+.. doctest::
+
+   >>> speed = [1000, 1100, 1200, 1200]
+   >>> mech_power = [np.nan, np.nan, np.nan, np.nan]
+   >>> torque = [10, 10, 10, 10]
+   >>> rail_pressure = [1000, 1000000000000, 1000, 1000]
+   >>> fuel_flow_rate = [10, 10, 10, 10]
+   >>> fluid_power = [np.nan, np.nan, np.nan, np.nan]
+   >>> df_init = pd.DataFrame({"speed": speed, "mech power": mech_power, "torque": torque, "rail pressure": rail_pressure, "fuel flow rate": fuel_flow_rate, "fluid power": fluid_power,})
+   >>> print(df_init)
+      speed  mech power  torque  rail pressure  fuel flow rate  fluid power
+   0   1000         NaN      10           1000              10          NaN
+   1   1100         NaN      10  1000000000000              10          NaN
+   2   1200         NaN      10           1000              10          NaN
+   3   1200         NaN      10           1000              10          NaN
+
+Then we add a column header which contains units information
+
+.. doctest::
+
+   >>> units = ["rpm", "kW", "N m", "bar", "l/min", "kW"]
+   >>> df_to_save = df_init.copy()
+   >>> df_to_save.columns = pd.MultiIndex.from_arrays([df_init.columns, units])
+   >>> print(df_to_save)
+     speed mech power torque  rail pressure fuel flow rate fluid power
+       rpm         kW    N m            bar          l/min          kW
+   0  1000        NaN     10           1000             10         NaN
+   1  1100        NaN     10  1000000000000             10         NaN
+   2  1200        NaN     10           1000             10         NaN
+   3  1200        NaN     10           1000             10         NaN
+
+Now we save this to disk as a csv to give us our starting point.
+
+.. doctest::
+
+   >>> test_csv_name = "pandas_test.csv"
+   >>> df_to_save.to_csv(test_csv_name, index=False)
+
+Now we are in a position to read the csv we just saved. Let's start by reading the file with units as a level in a multiindex column.
+
+.. doctest::
+
+   >>> df = pd.read_csv(test_csv_name, header=[0,1])
+   >>> print(df)
+     speed mech power torque  rail pressure fuel flow rate fluid power
+       rpm         kW    N m            bar          l/min          kW
+   0  1000        NaN     10           1000             10         NaN
+   1  1100        NaN     10  1000000000000             10         NaN
+   2  1200        NaN     10           1000             10         NaN
+   3  1200        NaN     10           1000             10         NaN
+
+Then use the DataFrame's `pint.quantify` method to convert the columns from `np.ndarray`s to PintArrays, with units from the bottom column level.
+
+.. doctest::
+
+   >>> df_ = df.pint.quantify(ureg, level=-1)
+   >>> print(df_)
+   0  1000.0 revolutions_per_minute  nan kilowatt  10.0 meter * newton
+   1  1100.0 revolutions_per_minute  nan kilowatt  10.0 meter * newton
+   2  1200.0 revolutions_per_minute  nan kilowatt  10.0 meter * newton
+   3  1200.0 revolutions_per_minute  nan kilowatt  10.0 meter * newton
+
+            rail pressure       fuel flow rate   fluid power
+   0           1000.0 bar  10.0 liter / minute  nan kilowatt
+   1  1000000000000.0 bar  10.0 liter / minute  nan kilowatt
+   2           1000.0 bar  10.0 liter / minute  nan kilowatt
+   3           1000.0 bar  10.0 liter / minute  nan kilowatt
+
+
 
 .. doctest::
 
@@ -100,25 +177,6 @@ Thanks to the DataFrame accessors, reading from files with unit information beco
    1  1100        NaN     10  1000000000000             10         NaN
    2  1200        NaN     10           1000             10         NaN
    3  1200        NaN     10           1000             10         NaN
-
-We can then call this DataFrames `pint.quantify` method to use the units header row to convert all of the columns to PintArrays
-
-.. doctest::
-
-   >>> df_ = df.pint.quantify(ureg, level=-1)
-   >>> print(df_)
-
-                              speed    mech power               torque  \
-   0  1000.0 revolutions_per_minute  nan kilowatt  10.0 meter * newton
-   1  1100.0 revolutions_per_minute  nan kilowatt  10.0 meter * newton
-   2  1200.0 revolutions_per_minute  nan kilowatt  10.0 meter * newton
-   3  1200.0 revolutions_per_minute  nan kilowatt  10.0 meter * newton
-
-            rail pressure       fuel flow rate   fluid power
-   0           1000.0 bar  10.0 liter / minute  nan kilowatt
-   1  1000000000000.0 bar  10.0 liter / minute  nan kilowatt
-   2           1000.0 bar  10.0 liter / minute  nan kilowatt
-   3           1000.0 bar  10.0 liter / minute  nan kilowatt
 
 As previously, operations between DataFrame columns are unit aware
 
@@ -173,7 +231,7 @@ The DataFrame's `pint.dequantify` method then allows us to retrieve the units in
    3           10.0  1.000000e+03           10.0         1.000000e+04
 
 
-This allows for some rather powerful ability to change either single column units
+This allows for some rather powerful abilities. For example, to change single column units
 
 .. doctest::
 
