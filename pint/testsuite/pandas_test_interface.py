@@ -372,7 +372,7 @@ class TestUserInterface(object):
 
         test_csv = join(
             dirname(__file__),
-            "..", "..", "example-notebooks", "pint_test_data.csv"
+            "test-data", "pint_test_data.csv"
         )
 
         df=pd.read_csv(test_csv, header=[0,1])
