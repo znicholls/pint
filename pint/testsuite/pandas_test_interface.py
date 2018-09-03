@@ -3,6 +3,7 @@
 # - pandas test resources https://github.com/pandas-dev/pandas/blob/master/pandas/tests/extension/base/__init__.py
 
 import sys
+from os.path import join, dirname
 
 import pint
 import pytest
@@ -12,6 +13,7 @@ from pandas.tests.extension import base
 from pandas.core import ops
 
 import numpy as np
+import pint
 import pint.pandas_interface as ppi
 import operator
 import warnings
@@ -30,8 +32,7 @@ def dtype():
 
 @pytest.fixture
 def data():
-    return ppi.PintArray( np.arange(start=1,stop=101) * ureg.kilogram)
-
+    return ppi.PintArray( np.arange(start=1.,stop=101.) * ureg.kilogram)
 
 @pytest.fixture
 def data_missing():
@@ -324,6 +325,9 @@ class TestSetitem(base.BaseSetitemTests):
         assert ser[0] == data[10]
         assert ser[1] == data[10]
 
+        
+# would be ideal to just test all of this by running the example notebook
+# but this isn't a discussion we've had yet
 class TestUserInterface(object):
     def test_get_underlying_data(self, data):
         ser = pd.Series(data)
@@ -349,7 +353,117 @@ class TestUserInterface(object):
         # This needs to be a list of scalar quantities to work :<
         ser = pd.Series([q for q in strt], dtype=ppi.PintType())
         assert all(ser.values == strt)
+        
+    def test_df_operations(self):
+        # simply a copy of what's in the notebook
+        Q_ = ureg.Quantity
+        df = pd.DataFrame({
+            "torque": PintArray(Q_([1, 2, 2, 3], "lbf ft")),
+            "angular_velocity": PintArray(Q_([1000, 2000, 2000, 3000], "rpm"))
+        })
 
+        df['power'] = df['torque'] * df['angular_velocity']
+
+        df.power.values.data
+        df.torque.values.data
+        df.angular_velocity.values.data
+
+        df.power.values.data.to("kW")
+
+        test_csv = join(
+            dirname(__file__),
+            "test-data", "pandas_test.csv"
+        )
+
+        df=pd.read_csv(test_csv, header=[0,1])
+        df_ = df.pint.quantify(ureg, level=-1)
+
+        df_['mech power'] = df_.speed*df_.torque
+        df_['fluid power'] = df_['fuel flow rate'] * df_['rail pressure']
+
+        df_.pint.dequantify()
+
+        df_['fluid power'] = df_['fluid power'].pint.to("kW")
+        df_['mech power'] = df_['mech power'].pint.to("kW")
+        df_.pint.dequantify()
+
+        df_.pint.to_base_units().pint.dequantify()
+
+class TestSeriesAccessors(object):
+    @pytest.mark.parametrize('attr', [
+'debug_used',
+'default_format',
+'dimensionality',
+'dimensionless',
+'force_ndarray',
+'shape',
+'u',
+'unitless',
+'units'])
+    def test_series_scalar_property_accessors(self, data, attr):
+       s = pd.Series(data)
+       assert getattr(s.pint, attr) == getattr(data._data,attr)
+    
+    @pytest.mark.parametrize('attr', [
+'m',
+'magnitude'])
+    def test_series_property_accessors(self, data, attr):
+       s = pd.Series(data)
+       assert all(getattr(s.pint, attr) == pd.Series(getattr(data._data,attr)))
+        
+    @pytest.mark.parametrize('attr', [
+'imag',
+'real'])
+    def test_series_property_accessors(self, data, attr):
+       s = pd.Series(data)
+       assert all(getattr(s.pint, attr) == pd.Series(PintArray(getattr(data._data,attr))))
+        
+    @pytest.mark.parametrize('attr_args', [
+('check',({"[length]": 1})),
+('compatible_units',()),
+# ('format_babel',()), Needs babel installed?
+# ('plus_minus',()), Needs uncertanties
+('to_tuple',()),
+('tolist',())])
+    def test_series_scalar_method_accessors(self, data, attr_args):
+       attr=attr_args[0]
+       args=attr_args[1]
+       s = pd.Series(data)
+       assert getattr(s.pint, attr)(*args) == getattr(data._data,attr)(*args)
+       
+    @pytest.mark.parametrize('attr_args', [
+('ito',("g",)),
+('ito_base_units',()),
+('ito_reduced_units',()),
+('ito_root_units',()),
+('put',(1, data()[0]))
+       ])
+    def test_series_inplace_method_accessors(self, data, attr_args):
+       attr=attr_args[0]
+       args=attr_args[1]
+       from copy import deepcopy
+       s = pd.Series(deepcopy(data))
+       getattr(s.pint, attr)(*args)
+       getattr(data._data,attr)(*args)
+       assert all(s.values == data)
+    
+    @pytest.mark.parametrize('attr_args', [
+('clip',(data()[10],data()[20])),
+('from_tuple',(data().data.to_tuple(),)),
+('m_as',("g",)),
+('searchsorted',(data()[10],)),
+('to',("g")),
+('to_base_units',()),
+('to_compact',()),
+('to_reduced_units',()),
+('to_root_units',()),
+# ('to_timedelta',()),
+])
+    def test_series_method_accessors(self, data, attr_args):
+       attr=attr_args[0]
+       args=attr_args[1]
+       s = pd.Series(data)
+       assert all(getattr(s.pint, attr)(*args) == getattr(data._data,attr)(*args))
 
 arithmetic_ops = [
     operator.add,
@@ -367,6 +481,7 @@ comparative_ops = [
     operator.ge,
     operator.gt,
 ]
+
 
 class TestPintArrayQuantity(QuantityTestCase):
     FORCE_NDARRAY = True
@@ -387,7 +502,7 @@ class TestPintArrayQuantity(QuantityTestCase):
         # Perform operations with Quantities and PintArrays
         # The resulting Quantity and PintArray.Data should be the same
         # a op b == c
-        # warnings ignored here as it these tests are to ensure 
+        # warnings ignored here as it these tests are to ensure
         # pint array behaviour is the same as quantity
         def test_op(a_pint, a_pint_array, b_, coerce=True):
             try:
