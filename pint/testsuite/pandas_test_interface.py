@@ -361,9 +361,18 @@ class TestSeriesAccessors(object):
 'u',
 'unitless',
 'units'])
-    def test_series_attributes_accessors(self, data, attr):
+    def test_series_scalar_property_accessors(self, data, attr):
        s = pd.Series(data)
        assert getattr(s.pint, attr) == getattr(data._data,attr)
+    
+    @pytest.mark.parametrize('attr', [
+'imag',
+'m',
+'magnitude',
+'real'])
+    def test_series_property_accessors(self, data, attr):
+       s = pd.Series(data)
+       assert getattr(s.pint, attr) == pd.Series(getattr(data._data,attr))
         
 arithmetic_ops = [
     operator.add,
