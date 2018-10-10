@@ -9,15 +9,16 @@ Pint: makes units easy
 
 Pint is a Python package to define, operate and manipulate **physical quantities**:
 the product of a numerical value and a unit of measurement. It allows
-arithmetic operations between them and conversions from and to different units.
+arithmetic operations between physical quantities and conversions to and from
+different units.
 
-It is distributed with a `comprehensive list of physical units, prefixes and constants`_.
+Pint is distributed with a `comprehensive list of physical units, prefixes and constants`_.
 Due to its modular design, you can extend (or even rewrite!) the complete list
 without changing the source code. It supports a lot of numpy mathematical
 operations **without monkey patching or wrapping numpy**.
 
-It has a complete test coverage. It runs in Python 2.7 and 3.3+ with no other
-dependency. It is licensed under BSD.
+It has comprehensive test coverage, runs in Python 2.7 and 3.3+ with no other
+dependency and is licensed under BSD.
 
 
 It is extremely easy and natural to use:
@@ -29,7 +30,7 @@ It is extremely easy and natural to use:
     >>> 3 * ureg.meter + 4 * ureg.cm
     <Quantity(3.04, 'meter')>
 
-and you can make good use of numpy if you want:
+You can make good use of numpy if you want:
 
 .. code-block:: python
 
@@ -38,6 +39,8 @@ and you can make good use of numpy if you want:
     <Quantity([ 3.04  4.03], 'meter')>
     >>> np.sum(_)
     <Quantity(7.07, 'meter')>
+
+Do we want to add Pandas example here?
 
 
 Quick Installation
@@ -68,31 +71,33 @@ programmed Pint to scratch my own itches.
 **Unit parsing**: prefixed and pluralized forms of units are recognized without
 explicitly defining them. In other words: as the prefix *kilo* and the unit
 *meter* are defined, Pint understands *kilometers*. This results in a much
-shorter and maintainable unit definition list as compared to other packages.
+shorter and maintainable unit definition list compared to other packages.
 
-**Standalone unit definitions**: units definitions are loaded from a text file
+**Standalone unit definitions**: unit definitions are loaded from a text file
 which is simple and easy to edit. Adding and changing units and their
 definitions does not involve changing the code.
 
-**Advanced string formatting**: a quantity can be formatted into string using
+**Advanced string formatting**: a quantity can be formatted into a string using
 `PEP 3101`_ syntax. Extended conversion flags are given to provide symbolic,
 LaTeX and pretty formatting. Unit name translation is available if Babel_ is
 installed.
 
-**Free to choose the numerical type**: You can use any numerical type
+**Free to choose the numerical type**: you can use any numerical type
 (`fraction`, `float`, `decimal`, `numpy.ndarray`, etc). NumPy_ is not required
 but supported.
 
-**NumPy integration**: When you choose to use a NumPy_ ndarray, its methods and
+**NumPy integration**: when you choose to use a NumPy_ ndarray, its methods and
 ufuncs are supported including automatic conversion of units. For example
 `numpy.arccos(q)` will require a dimensionless `q` and the units of the output
-quantity will be radian.
+quantity will be radians.
+
+**Pandas integration**: thanks to `Pandas Extension Types`_ it is now possible to use Pint with Pandas. Operations on DataFrames and between columns are units aware, providing even more convenience for users of Pandas DataFrames. For full details, see the `Pandas Support Documentation`_.
 
 **Uncertainties integration**:  transparently handles calculations with
-quantities with uncertainties (like 3.14±0.01) meter via the `uncertainties
+quantities with uncertainties (like 3.14±0.01 meters) via the `uncertainties
 package`_.
 
-**Handle temperature**: conversion between units with different reference
+**Temperature handling**: conversion between units with different reference
 points, like positions on a map or absolute temperature scales.
 
 **Small codebase**: easy to maintain codebase with a flat hierarchy.
@@ -101,8 +106,6 @@ points, like positions on a map or absolute temperature scales.
 
 **Python 2 and 3**: a single codebase that runs unchanged in Python 2.7+ and
 Python 3.3+.
-
-**Pandas integration**: Thanks to `Pandas Extension Types`_ it is now possible to use Pint with Pandas. Operations on DataFrames and between columns are units aware, providing even more convenience for users of Pandas DataFrames. For full details, see the `Pandas Support Documentation`_.
 
 
 When you choose to use a NumPy_ ndarray, its methods and
@@ -147,7 +150,7 @@ One last thing
 
 .. epigraph::
 
- The MCO MIB has determined that the root cause for the loss of the MCO spacecraft was the failure to use metric     units in the coding of a ground software file, “Small Forces,” used in trajectory models. Specifically, thruster performance data in English units instead of metric units was used in the software application code titled SM_FORCES (small forces). The output from the SM_FORCES application code as required by a MSOP Project Software Interface Specification (SIS) was to be in metric units of Newtonseconds (N-s). Instead, the data was reported in English units of pound-seconds (lbf-s). The Angular Momentum Desaturation (AMD) file contained the output data from the SM_FORCES software. The SIS, which was not followed, defines both the format and units of the AMD file generated by ground-based computers. Subsequent processing of the data from AMD file by the navigation software algorithm therefore, underestimated the effect on the spacecraft trajectory by a factor of 4.45, which is the required conversion factor from force in pounds to Newtons. An erroneous trajectory was computed using this incorrect data.
+ The MCO MIB has determined that the root cause for the loss of the MCO spacecraft was the failure to use metric units in the coding of a ground software file, “Small Forces,” used in trajectory models. Specifically, thruster performance data in English units, instead of metric units, was used in the software application code titled SM_FORCES (small forces). The output from the SM_FORCES application code, as required by a MSOP Project Software Interface Specification (SIS), was to be in metric units of Newtonseconds (N-s). Instead, the data was reported in English units of pound-seconds (lbf-s). The Angular Momentum Desaturation (AMD) file contained the output data from the SM_FORCES software. The SIS, which was not followed, defines both the format and units of the AMD file generated by ground-based computers. Subsequent processing of the data from the AMD file by the navigation software algorithm therefore, underestimated the effect on the spacecraft trajectory by a factor of 4.45, which is the required conversion factor from force in pounds to Newtons. An erroneous trajectory was computed using this incorrect data.
 
             `Mars Climate Orbiter Mishap Investigation Phase I Report`
             `PDF <ftp://ftp.hq.nasa.gov/pub/pao/reports/1999/MCO_report.pdf>`_
